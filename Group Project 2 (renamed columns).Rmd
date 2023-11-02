@@ -1,0 +1,39 @@
+---
+title: "Group Project 2"
+author: "Ana, Ellen, Rylan"
+date: "2023-11-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(tidyverse)
+```
+
+
+```{r}
+soccer <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-04-04/soccer21-22.csv') %>% 
+  rename(final_home_goals = FTHG, 
+         final_away_goals = FTAG,
+         full_result = FTR,
+         half_home_goals = HTHG,
+         half_away_goals = HTAG,
+         half_result = HTR,
+         home_shots = HS,
+         away_shots = AS,
+         home_shots_on_target = HST,
+         away_shots_on_target = AST,
+         home_fouls = HF,
+         away_fouls = AF,
+         home_corners = HC,
+         away_corners = AC,
+         home_yellows = HY,
+         away_yellows = AY,
+         home_reds = HR,
+         away_reds = AR)
+```
+
