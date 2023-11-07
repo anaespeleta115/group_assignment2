@@ -1,0 +1,124 @@
+---
+title: "Group Project 2"
+author: "Ana, Ellen, Rylan"
+date: "2023-11-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(rpart)        # for building trees
+library(rpart.plot)   # for plotting trees
+library(randomForest) # for bagging & forests
+library(infer)        # for resampling
+
+library(fivethirtyeight)       # for resampling
+```
+## Creating the dataset
+
+```{r}
+soccer <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-04-04/soccer21-22.csv') %>% 
+rename(final_home_goals = FTHG, 
+         final_away_goals = FTAG,
+         full_result = FTR,
+         half_home_goals = HTHG,
+         half_away_goals = HTAG,
+         half_result = HTR,
+         home_shots = HS,
+         away_shots = AS,
+         home_shots_on_target = HST,
+         away_shots_on_target = AST,
+         home_fouls = HF,
+         away_fouls = AF,
+         home_corners = HC,
+         away_corners = AC,
+         home_yellows = HY,
+         away_yellows = AY,
+         home_reds = HR,
+         away_reds = AR) %>% 
+mutate(full_result_1 = as.factor(full_result)) %>%
+select(-Date, -HomeTeam, -AwayTeam, -Referee, -full_result, -final_home_goals, -final_away_goals)
+
+```
+## Building an example tree
+
+```{r fig.height = 8, fig.width = 8}
+# STEP 1: tree specification
+tree_spec <- decision_tree() %>%
+  set_mode("classification") %>% 
+  set_engine(engine = "rpart") %>% 
+  set_args(cost_complexity = 0, min_n = 2, tree_depth = 5)
+# STEP 2: Build the tree! No tuning (hence no workflows) necessary.
+original_tree <- tree_spec %>% 
+  fit(full_result_1 ~ ., data = soccer)
+
+# Plot the tree
+original_tree %>%
+  extract_fit_engine() %>%
+  plot(margin = 0)
+original_tree %>%
+  extract_fit_engine() %>%
+  text(cex = 0.8)
+```
+## Building the forest
+
+```{r}
+# There's randomness behind the splits!
+set.seed(253)
+
+# STEP 1: Model Specification
+rf_spec <- rand_forest()  %>%
+  set_mode("classification") %>%
+  set_engine(engine = "ranger") %>%
+  set_args(
+    mtry = NULL,
+    trees = 500,
+    min_n = 2,
+    probability = FALSE,    # Report classifications, not probability calculations
+    importance = "impurity" # Use Gini index to measure variable importance
+  )
+# STEP 2: Build the forest
+
+# There are no preprocessing steps or tuning, hence no need for a workflow!
+soccer_forest <- rf_spec %>%
+  fit(full_result_1 ~ ., data = soccer)
+soccer_forest
+```
+
+## Making a confusion matrix
+
+```{r eval = FALSE}
+
+# OOB confusion matrix
+soccer_forest %>% 
+  extract_fit_engine() %>% 
+  pluck("confusion.matrix") %>% 
+  t()
+
+```
+## Total counts, Accuracy per category
+
+```{r}
+A <- 90+22+17
+H <- 13+13+137
+D <- 33+17+38
+
+A_acc <- 90/A
+H_acc <- 137/H
+D_acc <- 17/D
+
+cat("Home team total games lost:", A, "\n")
+cat("Home team loss prediction accuracy:", A_acc, "\n")
+
+cat("Home team total games tied:", D, "\n")
+cat("Home team tie prediction accuracy:", D_acc, "\n")
+
+cat("Home team total games won:", H, "\n")
+cat("Home team win prediction accuracy:", H_acc, "\n")
+```
+### We tend to have higher prediction accuracy for wins because our dataset is unbalanced and we have a larger number of home team wins recorded in our dataset.
